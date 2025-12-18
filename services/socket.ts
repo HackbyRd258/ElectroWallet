@@ -16,6 +16,8 @@ export type MempoolTx = {
   currency: string;
   timestamp: number;
   status: 'Pending' | 'Confirmed' | 'Failed';
+  confirmations?: number;
+  requiredConfirmations?: number;
 };
 
 class ElectroSocket {
@@ -151,6 +153,10 @@ class ElectroSocket {
         return;
       }
 
+        // Different confirmation requirements per currency (like real blockchains)
+        const requiredConfs = payload.currency === 'BTC' ? 6 : payload.currency === 'ETH' ? 12 : 25;
+        const confInterval = payload.currency === 'BTC' ? 600 : payload.currency === 'ETH' ? 200 : 80; // ms per confirmation
+
       // Create transaction
       const tx: MempoolTx = {
         id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -160,46 +166,60 @@ class ElectroSocket {
         amount: payload.amount,
         currency: payload.currency,
         timestamp: Date.now(),
-        status: 'Pending'
+          status: 'Pending',
+          confirmations: 0,
+          requiredConfirmations: requiredConfs
       };
 
       // Add to mempool (emit to all tabs)
       this.emit('MEMPOOL_UPDATE', [tx]);
 
-      // Simulate confirmation after 2 seconds
-      setTimeout(() => {
-        // Update balances
-        db.updateUser(sender.id, {
-          balance: {
-            ...sender.balance,
-            [curr]: sender.balance[curr] - payload.amount
+        // Simulate blockchain confirmations (each block adds a confirmation)
+        let currentConf = 0;
+        const confirmationTimer = setInterval(() => {
+          currentConf++;
+          tx.confirmations = currentConf;
+        
+          // Update mempool with new confirmation count
+          this.emit('MEMPOOL_UPDATE', [tx]);
+        
+          // Once we reach required confirmations, finalize the transaction
+          if (currentConf >= requiredConfs) {
+            clearInterval(confirmationTimer);
+          
+            // Update balances
+            db.updateUser(sender.id, {
+              balance: {
+                ...sender.balance,
+                [curr]: sender.balance[curr] - payload.amount
+              }
+            });
+
+            db.updateUser(receiver.id, {
+              balance: {
+                ...receiver.balance,
+                [curr]: receiver.balance[curr] + payload.amount
+              }
+            });
+
+            // Add to transactions
+            db.addTransaction({
+              id: tx.id,
+              senderId: sender.id,
+              senderUsername: sender.username,
+              receiverUsername: receiver.username,
+              amount: payload.amount,
+              currency: payload.currency,
+              hash: tx.hash,
+              timestamp: Date.now(),
+              status: 'Confirmed'
+            });
+
+            // Emit final confirmation to all tabs
+            tx.status = 'Confirmed';
+            this.emit('TX_CONFIRMED', tx);
           }
-        });
-
-        db.updateUser(receiver.id, {
-          balance: {
-            ...receiver.balance,
-            [curr]: receiver.balance[curr] + payload.amount
-          }
-        });
-
-        // Add to transactions
-        db.addTransaction({
-          id: tx.id,
-          senderId: sender.id,
-          senderUsername: sender.username,
-          receiverUsername: receiver.username,
-          amount: payload.amount,
-          currency: payload.currency,
-          hash: tx.hash,
-          timestamp: Date.now(),
-          status: 'Confirmed'
-        });
-
-        // Emit confirmation to all tabs
-        tx.status = 'Confirmed';
-        this.emit('TX_CONFIRMED', tx);
-      }, 2000);
+        }, confInterval);
     });
   }
 

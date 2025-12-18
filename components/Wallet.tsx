@@ -222,16 +222,37 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
         ) : (
           <div className="space-y-3">
             {mempool.map((tx) => (
-              <div key={tx.hash} className="border-l-2 border-white/10 pl-3">
+                <div key={tx.hash} className="border-l-2 border-electro-primary/30 pl-3 pb-2">
                 <p className="text-xs font-mono">
                   <span className="text-electro-accent">@{tx.senderUsername}</span>
                   <span className="text-white/40"> → </span>
                   <span className="text-electro-secondary">@{tx.receiverUsername}</span>
-                  <span className="text-white/40"> · </span>
-                  <span className="text-white">{tx.amount} {tx.currency}</span>
-                  <span className="text-white/40"> · </span>
-                  <span className="text-warning uppercase">{tx.status}</span>
                 </p>
+                  <p className="text-xs font-mono mt-1">
+                    <span className="text-white font-bold">{tx.amount} {tx.currency}</span>
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    {tx.status === 'Pending' && tx.confirmations !== undefined && tx.requiredConfirmations !== undefined ? (
+                      <>
+                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-electro-primary to-electro-secondary transition-all duration-300"
+                            style={{ width: `${(tx.confirmations / tx.requiredConfirmations) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-mono text-electro-accent">
+                          {tx.confirmations}/{tx.requiredConfirmations}
+                        </span>
+                      </>
+                    ) : (
+                      <span className={`text-[10px] font-mono uppercase ${tx.status === 'Confirmed' ? 'text-success' : 'text-warning'}`}>
+                        {tx.status}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[9px] font-mono text-white/30 mt-1 truncate">
+                    {tx.hash}
+                  </p>
               </div>
             ))}
           </div>
