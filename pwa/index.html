@@ -20,36 +20,37 @@
     <header class="top">
       <div>
         <h1>ElectroWallet</h1>
-        <p class="muted">PWA ledger client (local or remote).</p>
+        <p class="muted">Bitcoin Testnet Wallet - Web Version</p>
       </div>
-      <button id="refresh" class="ghost">Refresh</button>
+      <button id="refresh" class="ghost" title="Refresh balance and transactions">Refresh</button>
     </header>
 
     <section class="card">
       <div class="row space">
         <div>
-          <div class="label">Address</div>
+          <div class="label">Your Wallet Address</div>
           <div class="mono" id="address">—</div>
         </div>
-        <button id="copyAddress" class="ghost">Copy</button>
+        <button id="copyAddress" class="ghost" title="Copy address to clipboard">Copy</button>
       </div>
       <div class="row">
-        <div class="label">Mode</div>
-        <select id="mode">
-          <option value="local">Local ledger</option>
-          <option value="remote">Remote ledger</option>
+        <div class="label" title="Choose where to store your transaction data">Storage Mode</div>
+        <select id="mode" title="Local: Store in browser. Remote: Store on server">
+          <option value="local">Local (Browser Storage)</option>
+          <option value="remote">Remote (Server Storage)</option>
         </select>
       </div>
       <div class="row" id="remoteRow" hidden>
-        <input id="remoteUrl" placeholder="https://your-ledger-host:3000" autocomplete="off" />
-        <button id="saveRemote" class="ghost">Set</button>
+        <input id="remoteUrl" placeholder="https://your-ledger-host:3000" autocomplete="off" title="Enter your server URL" />
+        <button id="saveRemote" class="ghost" title="Save remote server URL">Connect</button>
       </div>
     </section>
 
     <section class="card stats">
       <div>
-        <div class="label">Balance (sats)</div>
+        <div class="label" title="1 satoshi = 0.00000001 BTC">Balance (satoshis)</div>
         <div class="big" id="balance">0</div>
+        <div class="muted small" id="balanceBTC">≈ 0.00000000 BTC</div>
       </div>
       <div>
         <div class="label">Transactions</div>
@@ -59,17 +60,17 @@
 
     <section class="card grid">
       <div>
-        <h3>Add funds (faucet)</h3>
+        <h3>Add Test Funds <span class="info-icon" title="This is a test wallet. Add free test coins to try it out.">ⓘ</span></h3>
         <form id="addForm">
-          <input name="amount" type="number" min="1" value="100000" />
-          <button type="submit">Credit</button>
+          <input name="amount" type="number" min="1" value="100000" placeholder="Amount in satoshis" title="Enter amount in satoshis (100,000 = 0.001 BTC)" />
+          <button type="submit">Add Funds</button>
         </form>
       </div>
       <div>
-        <h3>Send</h3>
+        <h3>Send Funds</h3>
         <form id="sendForm">
-          <input name="to" placeholder="Recipient address" required />
-          <input name="amount" type="number" min="1" placeholder="Amount sats" required />
+          <input name="to" placeholder="Recipient wallet address" required title="Enter the recipient's wallet address" />
+          <input name="amount" type="number" min="1" placeholder="Amount in satoshis" required title="Enter amount to send" />
           <button type="submit">Send</button>
         </form>
       </div>
