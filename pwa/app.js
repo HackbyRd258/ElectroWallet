@@ -1,36 +1,56 @@
 const state = {
   wallet: null,
-  mode: 'local',
-  remoteUrl: '',
+  remoteUrl: 'https://electrowallet-sync.glitch.me',
   localLedger: [],
+  isAuthenticated: false,
+  recoveryPhrase: '',
 };
 
 const els = {
+  authScreen: document.getElementById('authScreen'),
+  createScreen: document.getElementById('createScreen'),
+  loginScreen: document.getElementById('loginScreen'),
+  recoveryScreen: document.getElementById('recoveryScreen'),
+  mainApp: document.getElementById('mainApp'),
+  createAccountBtn: document.getElementById('createAccountBtn'),
+  loginBtn: document.getElementById('loginBtn'),
+  createForm: document.getElementById('createForm'),
+  loginForm: document.getElementById('loginForm'),
+  cancelCreate: document.getElementById('cancelCreate'),
+  cancelLogin: document.getElementById('cancelLogin'),
+  recoveryPhrase: document.getElementById('recoveryPhrase'),
+  confirmRecovery: document.getElementById('confirmRecovery'),
+  logoutBtn: document.getElementById('logoutBtn'),
   address: document.getElementById('address'),
-  copy: document.getElementById('copyAddress'),
-  mode: document.getElementById('mode'),
-  remoteRow: document.getElementById('remoteRow'),
-  remoteUrl: document.getElementById('remoteUrl'),
-  saveRemote: document.getElementById('saveRemote'),
+  copyAddress: document.getElementById('copyAddress'),
   balance: document.getElementById('balance'),
-  txCount: document.getElementById('txCount'),
-  addForm: document.getElementById('addForm'),
+  sendBtn: document.getElementById('sendBtn'),
+  receiveBtn: document.getElementById('receiveBtn'),
+  sendCard: document.getElementById('sendCard'),
+  receiveCard: document.getElementById('receiveCard'),
   sendForm: document.getElementById('sendForm'),
+  cancelSend: document.getElementById('cancelSend'),
+  closeReceive: document.getElementById('closeReceive'),
+  receiveAddress: document.getElementById('receiveAddress'),
+  copyReceive: document.getElementById('copyReceive'),
+  qrCode: document.getElementById('qrCode'),
   txList: document.getElementById('txList'),
-  refresh: document.getElementById('refresh'),
+  emptyState: document.getElementById('emptyState'),
   status: document.getElementById('status'),
   txTemplate: document.getElementById('txTemplate'),
 };
 
 const LS_KEYS = {
-  wallet: 'pwa_wallet_v1',
-  ledger: 'pwa_ledger_v1',
-  remote: 'pwa_remote_v1',
+  wallet: 'ew_wallet_v3',
+  ledger: 'ew_ledger_v3',
+  auth: 'ew_auth_v3',
 };
 
-function setStatus(msg, isError = false) {
-  els.status.textContent = msg || '';
-  els.status.style.color = isError ? '#ff9a9a' : '#9ba3b5';
+function showStatus(msg, isError = false) {
+  els.status.textContent = msg;
+  els.status.style.background = isError ? 'rgba(220,50,50,0.9)' : 'rgba(0,0,0,0.85)';
+  els.status.hidden = false;
+  setTimeout(() => { els.status.hidden = true; }, 3000);
 }
 
 function randomHex(len) {
@@ -38,35 +58,92 @@ function randomHex(len) {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function loadState() {
-  const wallet = JSON.parse(localStorage.getItem(LS_KEYS.wallet) || 'null');
-  const ledger = JSON.parse(localStorage.getItem(LS_KEYS.ledger) || '[]');
-  const remote = JSON.parse(localStorage.getItem(LS_KEYS.remote) || 'null');
-  state.wallet = wallet || { address: `ew-${randomHex(20)}` };
-  state.localLedger = ledger;
-  if (remote?.url) {
-    state.remoteUrl = remote.url;
-    state.mode = remote.mode || 'local';
+function generateMnemonic() {
+  const words = ['abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract', 'absurd', 'abuse', 'access', 'accident', 'account', 'accuse', 'achieve', 'acid', 'acoustic', 'acquire', 'across', 'act', 'action', 'actor', 'actress', 'actual', 'adapt', 'add', 'addict', 'address', 'adjust', 'admit', 'adult', 'advance', 'advice', 'aerobic', 'affair', 'afford', 'afraid', 'again', 'age', 'agent', 'agree', 'ahead', 'aim', 'air', 'airport', 'aisle', 'alarm', 'album', 'alcohol', 'alert', 'alien', 'all', 'alley', 'allow', 'almost', 'alone', 'alpha', 'already', 'also', 'alter', 'always', 'amateur', 'amazing', 'among', 'amount', 'amused', 'analyst', 'anchor', 'ancient', 'anger', 'angle', 'angry', 'animal', 'ankle', 'announce', 'annual', 'another', 'answer', 'antenna', 'antique', 'anxiety', 'any', 'apart', 'apology', 'appear', 'apple', 'approve', 'april', 'arch', 'arctic', 'area', 'arena', 'argue', 'arm', 'armed', 'armor', 'army', 'around', 'arrange', 'arrest', 'arrive', 'arrow', 'art', 'artefact', 'artist', 'artwork', 'ask', 'aspect', 'assault', 'asset', 'assist', 'assume', 'asthma', 'athlete', 'atom', 'attack', 'attend', 'attitude', 'attract', 'auction', 'audit', 'august', 'aunt', 'author', 'auto', 'autumn', 'average', 'avocado', 'avoid', 'awake', 'aware', 'away', 'awesome', 'awful', 'awkward', 'axis', 'baby', 'bachelor', 'bacon', 'badge', 'bag', 'balance', 'balcony', 'ball', 'bamboo', 'banana', 'banner', 'bar', 'barely', 'bargain', 'barrel', 'base', 'basic', 'basket', 'battle', 'beach', 'bean', 'beauty', 'because', 'become', 'beef', 'before', 'begin', 'behave', 'behind', 'believe', 'below', 'belt', 'bench', 'benefit', 'best', 'betray', 'better', 'between', 'beyond', 'bicycle', 'bid', 'bike', 'bind', 'biology', 'bird', 'birth', 'bitter', 'black', 'blade', 'blame', 'blanket', 'blast', 'bleak', 'bless', 'blind', 'blood', 'blossom', 'blouse', 'blue', 'blur', 'blush', 'board', 'boat', 'body', 'boil', 'bomb', 'bone', 'bonus', 'book', 'boost', 'border', 'boring', 'borrow', 'boss', 'bottom', 'bounce', 'box', 'boy', 'bracket', 'brain', 'brand', 'brass', 'brave', 'bread', 'breeze', 'brick', 'bridge', 'brief', 'bright', 'bring', 'brisk', 'broccoli', 'broken', 'bronze', 'broom', 'brother', 'brown', 'brush', 'bubble', 'buddy', 'budget', 'buffalo', 'build', 'bulb', 'bulk', 'bullet', 'bundle', 'bunker', 'burden', 'burger', 'burst', 'bus', 'business', 'busy', 'butter', 'buyer', 'buzz'];
+  const mnemonic = [];
+  for (let i = 0; i < 12; i++) {
+    mnemonic.push(words[Math.floor(Math.random() * words.length)]);
   }
-  persistWallet();
+  return mnemonic.join(' ');
 }
 
-function persistWallet() {
-  localStorage.setItem(LS_KEYS.wallet, JSON.stringify(state.wallet));
+function mnemonicToAddress(mnemonic) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(mnemonic);
+  return crypto.subtle.digest('SHA-256', data).then(hash => {
+    const hashArray = Array.from(new Uint8Array(hash));
+    const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return 'bc1q' + hex.slice(0, 38);
+  });
+}
+
+async function hashPin(pin) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function loadState() {
+  const auth = JSON.parse(localStorage.getItem(LS_KEYS.auth) || 'null');
+  const ledger = JSON.parse(localStorage.getItem(LS_KEYS.ledger) || '[]');
+  state.localLedger = ledger;
+  state.isAuthenticated = !!auth;
+  
+  if (auth) {
+    state.wallet = { address: auth.address, mnemonic: auth.mnemonic };
+  }
+}
+
+function persistAuth() {
+  if (state.wallet && state.isAuthenticated) {
+    localStorage.setItem(LS_KEYS.auth, JSON.stringify({
+      address: state.wallet.address,
+      mnemonic: state.wallet.mnemonic,
+      pinHash: state.wallet.pinHash
+    }));
+  }
 }
 
 function persistLedger() {
   localStorage.setItem(LS_KEYS.ledger, JSON.stringify(state.localLedger));
 }
 
-function persistRemote() {
-  localStorage.setItem(LS_KEYS.remote, JSON.stringify({ url: state.remoteUrl, mode: state.mode }));
+function logout() {
+  localStorage.removeItem(LS_KEYS.auth);
+  state.wallet = null;
+  state.isAuthenticated = false;
+  showAuthScreen();
+}
+
+function showAuthScreen() {
+  els.authScreen.hidden = false;
+  els.createScreen.hidden = true;
+  els.loginScreen.hidden = true;
+  els.recoveryScreen.hidden = true;
+  els.mainApp.hidden = true;
+}
+
+function showMainApp() {
+  els.authScreen.hidden = true;
+  els.createScreen.hidden = true;
+  els.loginScreen.hidden = true;
+  els.recoveryScreen.hidden = true;
+  els.mainApp.hidden = false;
 }
 
 function computeBalance(ledger, address) {
   const incoming = ledger.filter(t => t.to === address).reduce((s, t) => s + t.amount, 0);
   const outgoing = ledger.filter(t => t.from === address).reduce((s, t) => s + t.amount + t.fee, 0);
   return incoming - outgoing;
+}
+
+function satsToBTC(sats) {
+  return (sats / 100000000).toFixed(8);
+}
+
+function btcToSats(btc) {
+  return Math.floor(Number(btc) * 100000000);
 }
 
 function mapLedger(ledger, address) {
@@ -106,44 +183,48 @@ async function postRemoteTx(tx) {
 
 function render() {
   els.address.textContent = state.wallet.address;
-  els.mode.value = state.mode;
-  els.remoteRow.hidden = state.mode !== 'remote';
-  els.remoteUrl.value = state.remoteUrl || '';
+  els.receiveAddress.textContent = state.wallet.address;
 }
 
 function renderLedger(ledger) {
-  const balance = computeBalance(ledger, state.wallet.address);
+  const balanceSats = computeBalance(ledger, state.wallet.address);
+  const balanceBTC = satsToBTC(balanceSats);
   const mapped = mapLedger(ledger, state.wallet.address);
-  els.balance.textContent = balance.toLocaleString();
-  els.txCount.textContent = mapped.length;
+  
+  els.balance.textContent = balanceBTC;
+  els.emptyState.hidden = mapped.length > 0;
   els.txList.innerHTML = '';
+  
   mapped.forEach(tx => {
     const clone = els.txTemplate.content.cloneNode(true);
-    clone.querySelector('.type').textContent = tx.type;
-    clone.querySelector('.id').textContent = tx.id;
-    clone.querySelector('.amount').textContent = `${tx.type === 'Sent' ? '-' : '+'}${tx.amount} sats`;
-    clone.querySelector('.to').textContent = tx.counterparty;
-    const date = new Date(tx.timestamp * 1000);
-    clone.querySelector('.time').textContent = isNaN(date.getTime()) ? '' : date.toLocaleString();
+    const item = clone.querySelector('.tx-item');
+    const icon = clone.querySelector('.tx-icon');
+    icon.style.background = tx.type === 'Sent' ? '#ff6b6b' : '#51cf66';
+    clone.querySelector('.tx-type').textContent = tx.type;
+    clone.querySelector('.tx-address').textContent = tx.counterparty.slice(0, 20) + '...';
+    const amountBTC = satsToBTC(tx.amount);
+    clone.querySelector('.tx-amount').textContent = `${tx.type === 'Sent' ? '-' : '+'}${amountBTC} BTC`;
+    clone.querySelector('.tx-amount').style.color = tx.type === 'Sent' ? '#ff6b6b' : '#51cf66';
     els.txList.appendChild(clone);
   });
 }
 
 async function refresh() {
-  setStatus('Refreshing...');
   try {
-    let ledger = [];
-    if (state.mode === 'local') {
-      ledger = state.localLedger;
-    } else {
-      if (!state.remoteUrl) throw new Error('Set remote URL');
-      ledger = await fetchRemoteLedger();
-    }
-    renderLedger(ledger);
-    setStatus('');
+    const remoteLedger = await fetchRemoteLedger();
+    const merged = mergeLedgers(state.localLedger, remoteLedger);
+    state.localLedger = merged;
+    persistLedger();
+    renderLedger(merged);
   } catch (e) {
-    setStatus(e.message || 'Refresh failed', true);
+    renderLedger(state.localLedger);
   }
+}
+
+function mergeLedgers(local, remote) {
+  const seen = new Set(local.map(t => t.id));
+  const newTxs = remote.filter(t => !seen.has(t.id));
+  return [...local, ...newTxs].sort((a, b) => b.timestamp - a.timestamp);
 }
 
 function addLocalTx(tx) {
@@ -158,89 +239,160 @@ function buildTx({ from, to, amount, fee = null, confirmed = false }) {
   return { id, from, to, amount: Number(amount), fee: calcFee, timestamp: now, confirmed };
 }
 
-async function handleSend(to, amount) {
-  if (!to || !amount || amount <= 0) throw new Error('Amount and recipient required');
-  const tx = buildTx({ from: state.wallet.address, to, amount: Number(amount), confirmed: false });
-  if (state.mode === 'local') {
-    addLocalTx(tx);
-  } else {
-    if (!state.remoteUrl) throw new Error('Set remote URL');
+async function handleSend(to, amountBTC) {
+  if (!to || !amountBTC || amountBTC <= 0) throw new Error('Amount and recipient required');
+  const amountSats = btcToSats(amountBTC);
+  const balance = computeBalance(state.localLedger, state.wallet.address);
+  if (amountSats > balance) throw new Error('Insufficient balance');
+  
+  const tx = buildTx({ from: state.wallet.address, to, amount: amountSats, confirmed: false });
+  addLocalTx(tx);
+  
+  try {
     await postRemoteTx(tx);
+  } catch (e) {
+    console.warn('Failed to sync tx', e);
   }
-  await refresh();
-}
-
-async function handleCredit(amount) {
-  if (!amount || amount <= 0) throw new Error('Amount required');
-  const tx = buildTx({ from: 'faucet', to: state.wallet.address, amount: Number(amount), fee: 0, confirmed: true });
-  if (state.mode === 'local') {
-    addLocalTx(tx);
-  } else {
-    if (!state.remoteUrl) throw new Error('Set remote URL');
-    await postRemoteTx(tx);
-  }
+  
   await refresh();
 }
 
 function setupEvents() {
-  els.copy.addEventListener('click', async () => {
+  els.createAccountBtn.addEventListener('click', () => {
+    els.authScreen.hidden = true;
+    els.createScreen.hidden = false;
+  });
+
+  els.loginBtn.addEventListener('click', () => {
+    els.authScreen.hidden = true;
+    els.loginScreen.hidden = false;
+  });
+
+  els.cancelCreate.addEventListener('click', showAuthScreen);
+  els.cancelLogin.addEventListener('click', showAuthScreen);
+
+  els.createForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+    const pin = data.get('pin');
+    const confirmPin = data.get('confirmPin');
+    
+    if (pin !== confirmPin) {
+      showStatus('PINs do not match', true);
+      return;
+    }
+
+    const mnemonic = generateMnemonic();
+    const address = await mnemonicToAddress(mnemonic);
+    const pinHash = await hashPin(pin);
+    
+    state.wallet = { address, mnemonic, pinHash };
+    state.recoveryPhrase = mnemonic;
+    
+    els.createScreen.hidden = true;
+    els.recoveryScreen.hidden = false;
+    els.recoveryPhrase.textContent = mnemonic;
+  });
+
+  els.confirmRecovery.addEventListener('click', () => {
+    state.isAuthenticated = true;
+    persistAuth();
+    showMainApp();
+    render();
+    refresh();
+  });
+
+  els.loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.target);
+    const phrase = data.get('phrase').trim();
+    const pin = data.get('pin');
+    
+    const address = await mnemonicToAddress(phrase);
+    const pinHash = await hashPin(pin);
+    
+    state.wallet = { address, mnemonic: phrase, pinHash };
+    state.isAuthenticated = true;
+    persistAuth();
+    
+    showMainApp();
+    render();
+    refresh();
+    showStatus('Wallet imported successfully!');
+  });
+
+  els.logoutBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to logout? Make sure you have saved your recovery phrase.')) {
+      logout();
+    }
+  });
+
+  els.copyAddress.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(state.wallet.address);
-      setStatus('Address copied');
+      showStatus('Address copied!');
     } catch {
-      setStatus('Copy failed', true);
+      showStatus('Copy failed', true);
     }
   });
 
-  els.mode.addEventListener('change', async (e) => {
-    state.mode = e.target.value;
-    persistRemote();
-    render();
-    await refresh();
-  });
-
-  els.saveRemote.addEventListener('click', async () => {
-    const url = els.remoteUrl.value.trim();
-    state.remoteUrl = url;
-    state.mode = 'remote';
-    persistRemote();
-    render();
-    await refresh();
-  });
-
-  els.addForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const amount = Number(new FormData(e.target).get('amount'));
+  els.copyReceive.addEventListener('click', async () => {
     try {
-      await handleCredit(amount);
-      setStatus('Credited');
-    } catch (err) {
-      setStatus(err.message, true);
+      await navigator.clipboard.writeText(state.wallet.address);
+      showStatus('Address copied!');
+    } catch {
+      showStatus('Copy failed', true);
     }
+  });
+
+  els.sendBtn.addEventListener('click', () => {
+    els.sendCard.hidden = false;
+    els.receiveCard.hidden = true;
+  });
+
+  els.receiveBtn.addEventListener('click', () => {
+    els.receiveCard.hidden = false;
+    els.sendCard.hidden = true;
+  });
+
+  els.cancelSend.addEventListener('click', () => {
+    els.sendCard.hidden = true;
+    els.sendForm.reset();
+  });
+
+  els.closeReceive.addEventListener('click', () => {
+    els.receiveCard.hidden = true;
   });
 
   els.sendForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = new FormData(e.target);
     const to = data.get('to').toString().trim();
-    const amount = Number(data.get('amount'));
+    const amount = data.get('amount');
     try {
       await handleSend(to, amount);
-      setStatus('Sent');
+      showStatus('Transaction sent!');
       e.target.reset();
+      els.sendCard.hidden = true;
     } catch (err) {
-      setStatus(err.message, true);
+      showStatus(err.message, true);
     }
   });
 
-  els.refresh.addEventListener('click', refresh);
+  setInterval(refresh, 5000);
 }
 
 async function main() {
   loadState();
-  render();
   setupEvents();
-  await refresh();
+  
+  if (state.isAuthenticated && state.wallet) {
+    showMainApp();
+    render();
+    await refresh();
+  } else {
+    showAuthScreen();
+  }
 }
 
 main();
