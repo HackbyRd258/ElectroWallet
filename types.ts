@@ -12,7 +12,11 @@ export interface User {
   subscriptionTier: SubscriptionTier;
   isBanned: boolean;
   isAdmin: boolean;
-  walletAddress?: string;
+  walletAddresses?: {
+    BTC: string;
+    ETH: string;
+    SOL: string;
+  };
   mnemonic?: string;
   balance: {
     BTC: number;

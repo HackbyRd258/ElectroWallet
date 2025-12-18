@@ -13,13 +13,14 @@
           extend: {
             colors: {
               electro: {
-                bg: '#020617',
-                surface: '#0f172a',
-                primary: '#6366f1',
-                secondary: '#a855f7',
-                accent: '#22d3ee',
-                danger: '#ef4444',
-                success: '#10b981'
+                bg: '#0a0e1a',
+                surface: '#111827',
+                primary: '#818cf8',
+                secondary: '#c084fc',
+                accent: '#34d399',
+                danger: '#fb7185',
+                success: '#4ade80',
+                warning: '#fbbf24'
               },
             },
             fontFamily: {
@@ -36,28 +37,35 @@
     </script>
     <style>
       body {
-        background-color: #020617;
+        background: linear-gradient(135deg, #0a0e1a 0%, #111827 50%, #0f1419 100%);
+        background-attachment: fixed;
         color: #f8fafc;
         overflow-x: hidden;
       }
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: #020617;
+        background: #0a0e1a;
       }
       ::-webkit-scrollbar-thumb {
-        background: #1e293b;
-        border-radius: 4px;
+        background: linear-gradient(180deg, #818cf8 0%, #c084fc 100%);
+        border-radius: 5px;
+        border: 2px solid #0a0e1a;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #334155;
+        background: linear-gradient(180deg, #a5b4fc 0%, #d8b4fe 100%);
       }
       .glass {
-        background: rgba(15, 23, 42, 0.7);
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(17, 24, 39, 0.8);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+      .glass:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
       }
       @keyframes slideIn {
         from {
@@ -77,14 +85,52 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
       }
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+      }
+      @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
       .animate-slide-in {
-        animation: slideIn 0.3s ease-out;
+        animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       .animate-fade-in {
-        animation: fadeIn 0.5s ease-out;
+        animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .animate-pulse {
         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+      .animate-scale-in {
+        animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      * {
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+      }
+      button, a, input, select {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #818cf8;
+        box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+      }
+      button:hover {
+        transform: translateY(-1px);
+      }
+      button:active {
+        transform: translateY(0) scale(0.98);
       }
     </style>
   <script type="importmap">

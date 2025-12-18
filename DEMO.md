@@ -2,8 +2,9 @@
 
 ##  What's Running
 
-**Development Server**: http://localhost:3000
-**Status**: ✅ Live and Running
+**Frontend Dev Server**: http://localhost:3000
+**Realtime Hub**: http://localhost:4000
+**Status**: ✅ Live and Running (Sockets + Live Market)
 
 ## 🎉 Features Successfully Added
 
@@ -92,6 +93,19 @@
 - **Module**: ESM
 - **Browser Compatibility**: Modern browsers + Safari support
 
+## 🔌 Realtime Setup
+
+Run both processes in separate terminals:
+
+```zsh
+npm run server
+npm run dev
+```
+
+- The server fetches live market prices (CoinGecko) every ~10s, broadcasts updates via Socket.io, and emits news headlines periodically.
+- The client subscribes to `LAST_SNAPSHOT` and `MARKET_UPDATE` events to keep BTC/ETH/SOL prices in sync.
+- P2P transfers enter a mempool and are confirmed after a short delay; confirmations update balances and the global ledger.
+
 ## 📊 App Structure
 
 ```
@@ -105,12 +119,17 @@ ElectroWallet/
 │   ├── MnemonicDisplay.tsx   # Seed phrase
 │   ├── Navbar.tsx            # Navigation
 │   ├── Notifications.tsx     # NEW: Toast system
+│   ├── NewsTicker.tsx        # NEW: Live headlines from server
 │   ├── PriceAlert.tsx        # NEW: Price alerts
 │   ├── Settings.tsx          # Account settings
 │   ├── TransactionFilter.tsx # NEW: Advanced filtering
 │   └── Wallet.tsx            # Crypto operations
+│   ├── AdminAuth.tsx         # NEW: Separate admin login
+│   ├── AdminConsole.tsx      # NEW: Admin dashboard shell
 ├── services/
-│   └── mockDb.ts             # In-memory database
+│   ├── mockDb.ts             # In-memory database
+│   └── socket.ts             # Socket.io client helpers
+├── server.js                 # NEW: Realtime hub (Socket.io + CoinGecko + Redis)
 ├── constants.ts              # Configuration
 ├── types.ts                  # TypeScript definitions
 ├── App.tsx                   # Main application
@@ -174,9 +193,9 @@ ElectroWallet/
 
 ## 🐛 Known Limitations
 
-1. **Mock Data**: All transactions are simulated
-2. **No Persistence**: Data clears on refresh
-3. **No Real Blockchain**: Uses mock services
+1. **Mock Balances**: Balances are client-side and reset on refresh
+2. **No Durable DB**: Optional Redis stores last market snapshot only
+3. **No Real Blockchain**: Transfers and confirmations are simulated
 4. **Demo Banking**: Fiat operations are simulated
 
 ## 💡 Pro Tips
@@ -205,6 +224,14 @@ ElectroWallet/
 - XSS protection (React)
 - CSRF protection ready
 - Secure HTTP headers recommended
+
+## 👤 New User Funding Policy
+
+- New accounts start with zero balances for all currencies.
+- Users can receive funds via:
+   - Admin “Asset Injection” in `Admin Panel` (mint)
+   - P2P transfers from other users (confirmed transactions)
+- Attempting to send with insufficient balance is blocked by the wallet.
 
 ## 📱 Responsive Design
 
@@ -266,5 +293,19 @@ Deploy to:
 **Status**: ✅ Fully functional development version
 **Version**: 1.0.0
 **Last Updated**: December 18, 2025
+
+## 🔐 Admin Console
+
+- Separate admin login and dashboard distinct from user app.
+- Access: Click “ADMIN CONSOLE” button on the user login screen.
+- Admin login requires an account with `isAdmin = true` (default: `AdminGod` / `admin123`).
+- Features: Freeze/Unfreeze Market, Broadcast Airdrop, Global Alerts, User management, Asset Injection.
+
+## 🌍 Global Transfers
+
+- Usernames are normalized case-insensitively on login, lookup, and transfer, so operators worldwide can send to each other reliably.
+- New accounts start at zero balance; funding flows via admin mint or P2P transfers.
+- Mempool + confirmations update balances and the global ledger for everyone online.
+
 
 Enjoy exploring ElectroWallet! 🚀

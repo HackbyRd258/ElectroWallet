@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User } from '../types';
+import { electroSocket } from '../services/socket';
 
 interface NavbarProps {
   user: User;
@@ -10,16 +11,29 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ user, onLogout, setView, currentView }) => {
+  const [onlineCount, setOnlineCount] = useState<number>(0);
+  const [frozen, setFrozen] = useState<boolean>(false);
+
+  useEffect(() => {
+    electroSocket.connect(user.username);
+    electroSocket.onOnlineCount((n) => setOnlineCount(n));
+    electroSocket.onMarketFrozen((f) => setFrozen(f));
+  }, [user.username]);
+
   return (
-    <nav className="glass sticky top-0 z-50 border-b border-white/5 px-6 py-4">
+    <nav className="glass sticky top-0 z-50 border-b border-white/5 px-6 py-4 animate-fade-in">
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-electro-primary to-electro-secondary flex items-center justify-center shadow-glow">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-electro-primary to-electro-secondary flex items-center justify-center shadow-glow hover:shadow-lg hover:scale-110 transition-all cursor-pointer">
             <span className="text-xl font-bold italic tracking-tighter">E</span>
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white leading-none">ElectroWallet</h1>
-            <span className="text-[10px] text-electro-accent font-mono uppercase tracking-[0.2em]">Quantum Secure v2.5</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-electro-accent font-mono uppercase tracking-[0.2em]">Quantum Secure v2.5</span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${frozen ? 'bg-danger/20 text-danger' : 'bg-success/20 text-success'}`}>{frozen ? 'FROZEN' : 'LIVE'}</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-white/70">ONLINE: {onlineCount}</span>
+            </div>
           </div>
         </div>
 
@@ -27,9 +41,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, setView, currentView })
           <NavButton active={currentView === 'dashboard'} onClick={() => setView('dashboard')}>DASHBOARD</NavButton>
           <NavButton active={currentView === 'wallet'} onClick={() => setView('wallet')}>WALLET</NavButton>
           <NavButton active={currentView === 'settings'} onClick={() => setView('settings')}>SETTINGS</NavButton>
-          {user.isAdmin && (
-            <NavButton active={currentView === 'admin'} onClick={() => setView('admin')}>ADMIN PANEL</NavButton>
-          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -39,7 +50,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, setView, currentView })
           </div>
           <button 
             onClick={onLogout}
-            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold border border-white/10 transition-colors"
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-danger/20 hover:border-danger/30 text-xs font-bold border border-white/10 transition-all hover:text-danger"
           >
             DISCONNECT
           </button>
@@ -52,8 +63,10 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, setView, currentView })
 const NavButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button 
     onClick={onClick}
-    className={`px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all ${
-      active ? 'bg-electro-primary text-white shadow-glow' : 'text-white/40 hover:text-white/70'
+    className={`px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all transform hover:scale-105 ${
+      active 
+        ? 'bg-gradient-to-r from-electro-primary to-electro-secondary text-white shadow-glow' 
+        : 'text-white/40 hover:text-white hover:bg-white/5'
     }`}
   >
     {children}

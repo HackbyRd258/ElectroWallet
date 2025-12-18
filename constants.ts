@@ -11,12 +11,16 @@ export const MNEMONIC_WORDS = [
 
 export const MOCK_ADMIN: User = {
   id: 'admin-001',
-  username: 'AdminGod',
+  username: 'admin',
   passwordHash: 'admin123',
   subscriptionTier: SubscriptionTier.PREMIUM,
   isBanned: false,
   isAdmin: true,
-  walletAddress: 'bc1qadminx7v678hnd73ndu293ns7sk2k9sh3',
+  walletAddresses: {
+    BTC: 'bc1qadminx7v678hnd73ndu293ns7sk2k9sh3',
+    ETH: '0xAdmin000000000000000000000000000000000001',
+    SOL: 'AdminAdminAdminAdminAdminAdminAdminAdminAdminA'
+  },
   balance: { BTC: 100, ETH: 500, SOL: 10000 },
 };
 

@@ -1,7 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../services/mockDb';
 import { User, SubscriptionTier } from '../types';
+import { generateUniqueAddresses, validateAddress } from '../services/address';
+import { electroSocket } from '../services/socket';
+import { useNotify } from './Notifications';
 
 interface AdminPanelProps {
   onUpdate: () => void;
@@ -16,7 +19,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
   const [fundCurrency, setFundCurrency] = useState<'BTC' | 'ETH' | 'SOL'>('BTC');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const [marketFrozen, setMarketFrozen] = useState(false);
+  const [globalAlert, setGlobalAlert] = useState('');
+  const notify = useNotify();
   const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  useEffect(() => {
+    electroSocket.connect('admin');
+    electroSocket.onMarketFrozen((f) => setMarketFrozen(f));
+    electroSocket.onAirdrop(() => {
+      notify('success', 'Airdrop broadcast sent.');
+    });
+    electroSocket.onGlobalAlert((payload) => {
+      notify('warning', `Global Alert: ${payload.message}`);
+    });
+  }, []);
 
   const toggleBan = (id: string) => {
     const user = db.getUsers().find(u => u.id === id);
@@ -76,6 +93,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
     refresh();
   };
 
+  const regenerateAddresses = (user: User) => {
+    if (!confirm('Regenerate this user\'s addresses? Existing addresses will be replaced.')) return;
+    const others = db.getUsers().filter(u => u.id !== user.id);
+    const newAddresses = generateUniqueAddresses(others);
+    db.updateUser(user.id, { walletAddresses: newAddresses });
+    refresh();
+    alert(`New addresses generated for @${user.username}.`);
+  };
+
   const refresh = () => {
     setUsers([...db.getUsers()]);
     onUpdate();
@@ -83,6 +109,60 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
 
   return (
     <div className="space-y-8">
+      {/* Admin Realtime Controls */}
+      <div className="glass p-6 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { electroSocket.adminFreeze(!marketFrozen); notify('info', (!marketFrozen ? 'Market frozen' : 'Market unfrozen')); }}
+            className={`px-3 py-2 rounded-lg font-mono text-xs border ${marketFrozen ? 'bg-danger/20 text-danger border-danger/30' : 'bg-success/20 text-success border-success/30'}`}
+          >
+            {marketFrozen ? 'UNFREEZE MARKET' : 'FREEZE MARKET'}
+          </button>
+          <button
+            onClick={() => electroSocket.adminAirdrop()}
+            className="px-3 py-2 rounded-lg font-mono text-xs border bg-electro-accent/20 text-electro-accent border-electro-accent/30"
+          >
+            BROADCAST AIRDROP
+          </button>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <input
+            type="text"
+            value={globalAlert}
+            onChange={(e) => setGlobalAlert(e.target.value)}
+            placeholder="Global alert message..."
+            className="flex-1 bg-black/40 border border-white/10 rounded-xl p-2 text-white font-mono text-xs"
+          />
+          <button
+            onClick={() => { if (globalAlert.trim()) { electroSocket.adminAlert(globalAlert.trim()); notify('info', 'Global alert sent'); } setGlobalAlert(''); }}
+            className="px-3 py-2 rounded-lg font-mono text-xs border bg-white/10 text-white border-white/20"
+          >
+            SEND ALERT
+          </button>
+        </div>
+      </div>
+      {/* Network Stats */}
+      <div className="glass p-6 rounded-2xl">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <p className="text-white/40 text-[10px] font-mono uppercase tracking-widest mb-1">Total Users</p>
+            <p className="text-2xl font-bold font-mono tracking-tighter">{users.length}</p>
+          </div>
+          <div>
+            <p className="text-white/40 text-[10px] font-mono uppercase tracking-widest mb-1">Active</p>
+            <p className="text-2xl font-bold font-mono tracking-tighter text-success">{users.filter(u => !u.isBanned).length}</p>
+          </div>
+          <div>
+            <p className="text-white/40 text-[10px] font-mono uppercase tracking-widest mb-1">Banned</p>
+            <p className="text-2xl font-bold font-mono tracking-tighter text-danger">{users.filter(u => u.isBanned).length}</p>
+          </div>
+          <div>
+            <p className="text-white/40 text-[10px] font-mono uppercase tracking-widest mb-1">Admins</p>
+            <p className="text-2xl font-bold font-mono tracking-tighter text-electro-accent">{users.filter(u => u.isAdmin).length}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold font-mono text-white tracking-tighter">CORE COMMAND CENTER</h2>
@@ -104,7 +184,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
           <thead>
             <tr className="bg-white/5 text-white/30 border-b border-white/5">
               <th className="px-6 py-4 uppercase font-bold tracking-widest">Username</th>
-              <th className="px-6 py-4 uppercase font-bold tracking-widest">Address</th>
+              <th className="px-6 py-4 uppercase font-bold tracking-widest">Addresses</th>
               <th className="px-6 py-4 uppercase font-bold tracking-widest">Tier</th>
               <th className="px-6 py-4 uppercase font-bold tracking-widest">Status</th>
               <th className="px-6 py-4 uppercase font-bold tracking-widest text-right">Actions</th>
@@ -117,8 +197,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
                   <span className="text-electro-primary font-bold">@{u.username}</span>
                   {u.isAdmin && <span className="ml-2 text-[9px] bg-red-500/20 text-red-500 px-1 rounded">ROOT</span>}
                 </td>
-                <td className="px-6 py-4 text-white/40 group-hover:text-white/70 transition-colors">
-                  {u.walletAddress?.substr(0, 10)}...{u.walletAddress?.substr(-6)}
+                <td className="px-6 py-4 text-white/70 space-y-2">
+                  {(['BTC', 'ETH', 'SOL'] as const).map(asset => {
+                    const addr = u.walletAddresses?.[asset];
+                    const isValid = addr ? validateAddress(asset, addr) : false;
+                    return (
+                      <div key={asset} className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold w-9 text-white/60">{asset}</span>
+                        <span className="truncate text-xs" title={addr || 'No address'}>{addr ?? '—'}</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded ${isValid ? 'bg-green-100/20 text-green-300 border border-green-500/30' : 'bg-red-100/20 text-red-300 border border-red-500/30'}`}>
+                          {isValid ? 'valid' : 'invalid'}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </td>
                 <td className="px-6 py-4">
                   <select 
@@ -142,6 +234,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onUpdate }) => {
                     <AdminButton onClick={() => setFundingTarget(u)} color="accent">MINT</AdminButton>
                     <AdminButton onClick={() => resetPassword(u.id)} color="primary">RESET</AdminButton>
                     <AdminButton onClick={() => setSelectedUser(u)} color="primary">PHRASE</AdminButton>
+                    <AdminButton onClick={() => regenerateAddresses(u)} color="primary">REKEY</AdminButton>
                   </div>
                 </td>
               </tr>

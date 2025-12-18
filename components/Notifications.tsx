@@ -1,54 +1,45 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
-interface Notification {
-  id: string;
-  type: 'success' | 'error' | 'info' | 'warning';
-  message: string;
-  timestamp: number;
-}
+type NoticeType = 'info' | 'success' | 'warning' | 'error';
+type Notice = { id: string; type: NoticeType; message: string; ts: number };
 
-export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+const NoticeCtx = createContext<{ notify: (type: NoticeType, message: string) => void } | null>(null);
 
-  const addNotification = (type: Notification['type'], message: string) => {
-    const id = Math.random().toString(36);
-    setNotifications(prev => [...prev, { id, type, message, timestamp: Date.now() }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [list, setList] = useState<Notice[]>([]);
+
+  const notify = (type: NoticeType, message: string) => {
+    const id = Math.random().toString(36).slice(2);
+    const ts = Date.now();
+    const n: Notice = { id, type, message, ts };
+    setList((prev) => [...prev, n]);
+    setTimeout(() => setList((prev) => prev.filter((x) => x.id !== id)), 4500);
   };
 
-  return { notifications, addNotification };
-}
-
-export function NotificationContainer({ notifications }: { notifications: Notification[] }) {
-  const icons = {
-    success: '✓',
-    error: '✗',
-    info: 'ℹ',
-    warning: '⚠'
-  };
-
-  const colors = {
-    success: 'bg-green-500/20 border-green-500 text-green-400',
-    error: 'bg-red-500/20 border-red-500 text-red-400',
-    info: 'bg-blue-500/20 border-blue-500 text-blue-400',
-    warning: 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-  };
+  const value = useMemo(() => ({ notify }), []);
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
-      {notifications.map(notif => (
-        <div
-          key={notif.id}
-          className={`${colors[notif.type]} border-l-4 p-4 rounded-lg backdrop-blur-xl animate-slide-in`}
-        >
-          <div className="flex items-start gap-3">
-            <span className="text-xl">{icons[notif.type]}</span>
-            <p className="flex-1 text-sm">{notif.message}</p>
+    <NoticeCtx.Provider value={value}>
+      {children}
+      <div className="fixed top-4 right-4 z-[200] space-y-2 w-[320px]">
+        {list.map((n) => (
+          <div key={n.id} className={`glass p-3 rounded-xl border text-xs font-mono flex items-start gap-2 animate-slide-in shadow-accent-glow ${
+            n.type === 'success' ? 'border-success/30 text-success bg-success/10' :
+            n.type === 'error' ? 'border-danger/30 text-danger bg-danger/10' :
+            n.type === 'warning' ? 'border-yellow-400/30 text-yellow-300 bg-yellow-400/10' :
+            'border-white/10 text-white/80 bg-white/5'
+          }`}>
+            <span className="mt-0.5 w-2 h-2 rounded-full bg-white/30"></span>
+            <p className="flex-1">{n.message}</p>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </NoticeCtx.Provider>
   );
+};
+
+export function useNotify() {
+  const ctx = useContext(NoticeCtx);
+  if (!ctx) throw new Error('useNotify must be used within NotificationsProvider');
+  return ctx.notify;
 }

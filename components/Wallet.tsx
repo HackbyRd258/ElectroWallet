@@ -1,8 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, MarketData, SubscriptionTier } from '../types';
 import { db } from '../services/mockDb';
 import BankingBridge from './BankingBridge';
+import { electroSocket, MempoolTx } from '../services/socket';
+import { useNotify } from './Notifications';
+import { validateAddress } from '../services/address';
 
 interface WalletProps {
   user: User;
@@ -17,11 +20,47 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
   const [isBridging, setIsBridging] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [mempool, setMempool] = useState<MempoolTx[]>([]);
+  const [recipientInvalid, setRecipientInvalid] = useState(false);
+  const notify = useNotify();
+  
+  const totalValue = user.balance.BTC * market.BTC.price + user.balance.ETH * market.ETH.price + user.balance.SOL * market.SOL.price;
+
+  useEffect(() => {
+    electroSocket.connect(user.username);
+    electroSocket.onMempoolUpdate((txs) => setMempool(txs));
+    electroSocket.onTxConfirmed((tx) => {
+      setSuccess(`Confirmed: ${tx.amount} ${tx.currency} from @${tx.senderUsername} to @${tx.receiverUsername}`);
+      notify('success', `Transfer confirmed: ${tx.amount} ${tx.currency} → @${tx.receiverUsername}`);
+      // Update local ledger and balances
+      const sender = db.getUsers().find(u => u.username === tx.senderUsername);
+      const receiver = db.getUsers().find(u => u.username === tx.receiverUsername);
+      if (receiver) {
+        db.updateUser(receiver.id, { balance: { ...receiver.balance, [tx.currency]: receiver.balance[tx.currency as any] + tx.amount } });
+      }
+      if (sender) {
+        db.updateUser(sender.id, { balance: { ...sender.balance, [tx.currency]: sender.balance[tx.currency as any] - tx.amount } });
+      }
+      db.addTransaction({
+        id: tx.id,
+        senderId: sender?.id || 'unknown',
+        senderUsername: tx.senderUsername,
+        receiverUsername: tx.receiverUsername,
+        amount: tx.amount,
+        currency: tx.currency as any,
+        hash: tx.hash,
+        timestamp: tx.timestamp,
+        status: 'Confirmed'
+      });
+      onTransaction();
+    });
+  }, [user.username]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setRecipientInvalid(false);
 
     const sendAmount = parseFloat(amount);
     if (isNaN(sendAmount) || sendAmount <= 0) {
@@ -34,41 +73,16 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
       return;
     }
 
-    const receiver = db.getUsers().find(u => u.username === recipient);
-    if (!receiver) {
-      setError('User not found on the network.');
-      return;
-    }
+    // For now, we don't mutate local balances; server simulates mempool + confirm
+    const recipientTrimmed = recipient.trim();
+    const receiver = db.getUsers().find(u => u.username.toLowerCase() === recipientTrimmed.toLowerCase());
+    if (!receiver) { setError('User not found on the network.'); setRecipientInvalid(true); return; }
+    if (receiver.id === user.id) { setError('Cannot transmit to self.'); return; }
 
-    if (receiver.id === user.id) {
-      setError('Cannot transmit to self.');
-      return;
-    }
-
-    // Process Transaction
-    const txId = Math.random().toString(36).substr(2, 16);
-    const fee = user.subscriptionTier === SubscriptionTier.PREMIUM ? 0 : 0.0001;
-
-    // Update balances
-    const senderBalance = { ...user.balance, [currency]: user.balance[currency] - sendAmount - fee };
-    const receiverBalance = { ...receiver.balance, [currency]: receiver.balance[currency] + sendAmount };
-
-    db.updateUser(user.id, { balance: senderBalance });
-    db.updateUser(receiver.id, { balance: receiverBalance });
-
-    db.addTransaction({
-      id: txId,
-      senderId: user.id,
-      senderUsername: user.username,
-      receiverUsername: recipient,
-      amount: sendAmount,
-      currency,
-      hash: '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      timestamp: Date.now(),
-      status: 'Confirmed'
-    });
-
-    setSuccess(`Successfully transmitted ${sendAmount} ${currency} to @${recipient}`);
+    // Emit to server mempool
+    electroSocket.submitTx({ from: user.username, to: recipientTrimmed, amount: sendAmount, currency });
+    setSuccess(`Submitted ${sendAmount} ${currency} to @${recipientTrimmed} (Pending confirmation)`);
+    notify('info', `Submitted ${sendAmount} ${currency} to @${recipientTrimmed}`);
     setRecipient('');
     setAmount('');
     onTransaction();
@@ -98,10 +112,30 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
         </div>
 
         <div className="glass p-8 rounded-2xl">
-          <h3 className="text-sm font-bold font-mono text-white/50 mb-6 uppercase tracking-[0.2em]">Public Node Address</h3>
-          <div className="p-4 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
-            <code className="text-electro-accent font-mono text-sm break-all">{user.walletAddress}</code>
-            <button className="text-[10px] font-bold text-white/30 hover:text-white transition-colors ml-4">COPY</button>
+          <h3 className="text-sm font-bold font-mono text-white/50 mb-6 uppercase tracking-[0.2em]">Public Addresses</h3>
+          <div className="space-y-3">
+            {(['BTC','ETH','SOL'] as const).map((c) => (
+              <div key={c} className="p-4 bg-black/40 border border-white/5 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-white/40 font-mono uppercase mb-1">{c} ADDRESS</p>
+                  <code className="text-electro-accent font-mono text-sm break-all">{user.walletAddresses?.[c] || 'N/A'}</code>
+                </div>
+                <button
+                  onClick={() => {
+                    const addr = user.walletAddresses?.[c] || '';
+                    if (addr && validateAddress(c, addr)) {
+                      navigator.clipboard.writeText(addr);
+                      notify('success', `${c} address copied`);
+                    } else {
+                      notify('error', `${c} address unavailable or invalid`);
+                    }
+                  }}
+                  className={`text-[10px] font-bold transition-colors ml-4 ${validateAddress(c, user.walletAddresses?.[c] || '') ? 'text-white/30 hover:text-white' : 'text-white/20 cursor-not-allowed'}`}
+                >
+                  COPY
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -132,7 +166,7 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
               type="text" 
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white font-mono focus:outline-none focus:border-electro-secondary transition-all"
+              className={`w-full bg-black/40 border rounded-xl p-4 text-white font-mono focus:outline-none transition-all ${recipientInvalid ? 'border-danger focus:border-danger' : 'border-white/10 focus:border-electro-secondary'}`}
               placeholder="e.g. AdminGod"
             />
           </div>
@@ -178,6 +212,30 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
             EXECUTE TRANSMISSION
           </button>
         </form>
+      </div>
+
+      {/* Mempool Preview */}
+      <div className="glass p-8 rounded-2xl h-fit">
+        <h3 className="text-sm font-bold font-mono text-white/50 mb-6 uppercase tracking-[0.2em]">Mempool</h3>
+        {mempool.length === 0 ? (
+          <p className="text-xs text-white/30 font-mono">No pending transactions.</p>
+        ) : (
+          <div className="space-y-3">
+            {mempool.map((tx) => (
+              <div key={tx.hash} className="border-l-2 border-white/10 pl-3">
+                <p className="text-xs font-mono">
+                  <span className="text-electro-accent">@{tx.senderUsername}</span>
+                  <span className="text-white/40"> → </span>
+                  <span className="text-electro-secondary">@{tx.receiverUsername}</span>
+                  <span className="text-white/40"> · </span>
+                  <span className="text-white">{tx.amount} {tx.currency}</span>
+                  <span className="text-white/40"> · </span>
+                  <span className="text-warning uppercase">{tx.status}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {isBridging && <BankingBridge onClose={() => setIsBridging(false)} />}
