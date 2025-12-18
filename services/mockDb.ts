@@ -104,7 +104,15 @@ class MockDB {
     }
   }
 
-  getUsers() { return this.users; }
+  getUsers() { 
+    // Always reload from storage to ensure we have the latest users
+    const savedUsers = this.loadFromStorage(this.USERS_KEY);
+    if (savedUsers && savedUsers.length > 0) {
+      this.users = savedUsers;
+    }
+    return this.users; 
+  }
+  
   getTransactions() { return this.transactions; }
   getMarket() { return this.market; }
 

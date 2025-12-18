@@ -51,6 +51,11 @@ const App: React.FC = () => {
     electroSocket.onMarketSnapshot(applySnapshot);
     electroSocket.onMarketUpdate(applySnapshot);
 
+    // Listen for transaction confirmations to refresh user balance
+    electroSocket.onTxConfirmed(() => {
+      refreshData();
+    });
+
     return () => {
       // Handlers are lightweight; socket.io cleans up on disconnect
     };
@@ -65,6 +70,18 @@ const App: React.FC = () => {
       if (updatedSelf) setCurrentUser(updatedSelf);
     }
   }, [currentUser]);
+
+  // Listen for localStorage changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'electrowallet_users' || e.key === 'electrowallet_transactions') {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [refreshData]);
 
   if (mode === 'admin') {
     if (!adminUser) {
