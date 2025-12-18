@@ -9,21 +9,48 @@ import SwiftUI
 
 struct WalletView: View {
     @EnvironmentObject var walletManager: WalletManager
+    @State private var showCopiedAlert = false
     
     var body: some View {
         VStack(spacing: 24) {
             if let wallet = walletManager.currentWallet {
-                VStack(spacing: 8) {
-                    Text("Balance")
+                VStack(spacing: 16) {
+                    Text("Your Balance")
                         .font(.headline)
-                    Text("\(wallet.balanceInBTC, specifier: "%.8f") BTC")
-                        .font(.title).bold()
-                    Text("Address")
-                        .font(.headline)
-                    Text(wallet.address)
-                        .font(.footnote)
-                        .multilineTextAlignment(.center)
-                        .textSelection(.enabled)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(spacing: 4) {
+                        Text("\(wallet.balanceInBTC, specifier: "%.8f") BTC")
+                            .font(.system(.title, design: .rounded))
+                            .fontWeight(.bold)
+                        
+                        Text("\(Int64(wallet.balanceInBTC * 100_000_000)) satoshis")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    
+                    VStack(spacing: 8) {
+                        Text("Wallet Address")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Text(wallet.address)
+                                .font(.system(.caption, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            
+                            Button {
+                                copyToClipboard(wallet.address)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.caption)
+                            }
+                        }
+                    }
                 }
                 
                 VStack(spacing: 10) {
@@ -51,8 +78,18 @@ struct WalletView: View {
         }
         .padding()
         .navigationTitle("Wallet")
+        .alert("Address Copied!", isPresented: $showCopiedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your wallet address has been copied to the clipboard.")
+        }
         .task {
             await walletManager.refreshWalletData()
         }
+    }
+    
+    private func copyToClipboard(_ text: String) {
+        UIPasteboard.general.string = text
+        showCopiedAlert = true
     }
 }

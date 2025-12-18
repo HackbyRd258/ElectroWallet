@@ -15,22 +15,75 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Wallet")) {
+                Section(header: Text("Wallet Information")) {
                     if let wallet = walletManager.currentWallet {
-                        Text("Label: \(wallet.label)")
-                        Text("Address: \(wallet.address)")
-                            .textSelection(.enabled)
+                        HStack {
+                            Text("Label")
+                            Spacer()
+                            Text(wallet.label)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Address")
+                            Text(wallet.address)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        
+                        HStack {
+                            Text("Balance")
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("\(wallet.balanceInBTC, specifier: "%.8f") BTC")
+                                    .foregroundColor(.secondary)
+                                Text("\(Int64(wallet.balanceInBTC * 100_000_000)) sats")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     } else {
                         Text("No wallet loaded")
                     }
                 }
                 
-                if let message = infoMessage {
-                    Text(message)
-                        .foregroundColor(.secondary)
+                Section(header: Text("About")) {
+                    HStack {
+                        Text("Network")
+                        Spacer()
+                        Text("Bitcoin Testnet")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Link(destination: URL(string: "https://testnet-faucet.mempool.co/")!) {
+                        HStack {
+                            Label("Get Test Coins", systemImage: "link")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Important")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("This is a testnet wallet. Never use it with real Bitcoin!")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
                 
-                Section {
+                if let message = infoMessage {
+                    Section {
+                        Text(message)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Section(header: Text("Danger Zone")) {
                     Button(role: .destructive) {
                         showDeleteAlert = true
                     } label: {
@@ -45,7 +98,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes keys from keychain on this device.")
+                Text("This will permanently remove your wallet from this device. Make sure you have backed up your recovery phrase!")
             }
         }
     }
