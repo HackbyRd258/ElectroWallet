@@ -13,6 +13,8 @@ struct OnboardingView: View {
     @State private var isRestoring = false
     @State private var errorMessage: String?
     @State private var isLoading = false
+    @State private var createdMnemonic: String?
+    @State private var showBackupWarning = false
     
     var body: some View {
         NavigationView {
@@ -38,24 +40,60 @@ struct OnboardingView: View {
                         .font(.footnote)
                 }
                 
-                VStack(spacing: 12) {
-                    Button {
-                        Task { await createWallet() }
-                    } label: {
-                        Label("Create New Wallet", systemImage: "sparkles")
+                if let phrase = createdMnemonic {
+                    VStack(spacing: 12) {
+                        Text("⚠️ Save Your Recovery Phrase")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                        
+                        Text("Write down these 12 words in order. You'll need them to recover your wallet.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text(phrase)
+                            .font(.system(.body, design: .monospaced))
+                            .padding()
                             .frame(maxWidth: .infinity)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                            .textSelection(.enabled)
+                        
+                        Button {
+                            UIPasteboard.general.string = phrase
+                        } label: {
+                            Label("Copy to Clipboard", systemImage: "doc.on.doc")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        
+                        Button {
+                            showBackupWarning = true
+                        } label: {
+                            Text("I've Saved My Recovery Phrase")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading)
-                    
-                    Button {
-                        Task { await restoreWallet() }
-                    } label: {
-                        Label("Restore Wallet", systemImage: "arrow.counterclockwise")
-                            .frame(maxWidth: .infinity)
+                } else {
+                    VStack(spacing: 12) {
+                        Button {
+                            Task { await createWallet() }
+                        } label: {
+                            Label("Create New Wallet", systemImage: "sparkles")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isLoading)
+                        
+                        Button {
+                            Task { await restoreWallet() }
+                        } label: {
+                            Label("Restore Wallet", systemImage: "arrow.counterclockwise")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isLoading || mnemonic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(isLoading || mnemonic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 
                 Spacer()
@@ -68,12 +106,20 @@ struct OnboardingView: View {
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
+            .alert("Wallet Created Successfully", isPresented: $showBackupWarning) {
+                Button("Continue", role: .cancel) {
+                    createdMnemonic = nil
+                }
+            } message: {
+                Text("Make sure you've saved your recovery phrase. Without it, you cannot recover your wallet!")
+            }
         }
     }
     
     private func createWallet() async {
         await handle(action: {
-            _ = try await walletManager.createWallet()
+            let phrase = try await walletManager.createWallet()
+            createdMnemonic = phrase
         })
     }
     

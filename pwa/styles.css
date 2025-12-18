@@ -24,6 +24,14 @@ body {
 .mono { font-family: "SF Mono", ui-monospace, monospace; font-size: 13px; word-break: break-all; }
 .big { font-size: 28px; font-weight: 700; }
 .muted { color: #9ba3b5; font-size: 14px; }
+.small { font-size: 13px; margin-top: 4px; }
+.info-icon { 
+  cursor: help; 
+  opacity: 0.7; 
+  font-size: 14px;
+  margin-left: 4px;
+}
+.info-icon:hover { opacity: 1; }
 
 button, input, select {
   font: inherit;
@@ -33,12 +41,16 @@ button, input, select {
   color: #f5f7fb;
   padding: 10px 12px;
 }
-button { cursor: pointer; border: 1px solid rgba(255,255,255,0.15); }
+button { cursor: pointer; border: 1px solid rgba(255,255,255,0.15); transition: all 0.2s; }
 button.ghost { background: transparent; }
-button:hover { border-color: rgba(255,255,255,0.3); }
+button:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-input { width: 100%; background: rgba(255,255,255,0.05); }
-select { background: rgba(255,255,255,0.05); }
+input { width: 100%; background: rgba(255,255,255,0.05); transition: border-color 0.2s; }
+input:focus { outline: none; border-color: rgba(100,150,255,0.5); }
+input.error { border-color: rgba(255,100,100,0.6); }
+select { background: rgba(255,255,255,0.05); cursor: pointer; }
 form { display: flex; flex-direction: column; gap: 8px; }
 
 .tx-list { display: flex; flex-direction: column; gap: 10px; }
@@ -49,7 +61,24 @@ form { display: flex; flex-direction: column; gap: 8px; }
   border: 1px solid rgba(255,255,255,0.06);
 }
 .tx .amount { font-weight: 700; }
+.tx .amount.positive { color: #7ed957; }
+.tx .amount.negative { color: #ff9a9a; }
 .tx .meta { font-size: 13px; color: #9ba3b5; justify-content: space-between; }
+.copied-feedback {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: rgba(126, 217, 87, 0.9);
+  color: white;
+  border-radius: 8px;
+  animation: slideIn 0.3s ease;
+  z-index: 1000;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
 
 @media (max-width: 640px) {
   .top { flex-direction: column; align-items: flex-start; }

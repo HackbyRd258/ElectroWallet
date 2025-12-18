@@ -13,6 +13,7 @@ const els = {
   remoteUrl: document.getElementById('remoteUrl'),
   saveRemote: document.getElementById('saveRemote'),
   balance: document.getElementById('balance'),
+  balanceBTC: document.getElementById('balanceBTC'),
   txCount: document.getElementById('txCount'),
   addForm: document.getElementById('addForm'),
   sendForm: document.getElementById('sendForm'),
@@ -31,6 +32,14 @@ const LS_KEYS = {
 function setStatus(msg, isError = false) {
   els.status.textContent = msg || '';
   els.status.style.color = isError ? '#ff9a9a' : '#9ba3b5';
+}
+
+function showCopiedFeedback() {
+  const feedback = document.createElement('div');
+  feedback.className = 'copied-feedback';
+  feedback.textContent = '✓ Address copied to clipboard';
+  document.body.appendChild(feedback);
+  setTimeout(() => feedback.remove(), 2000);
 }
 
 function randomHex(len) {
@@ -115,13 +124,19 @@ function renderLedger(ledger) {
   const balance = computeBalance(ledger, state.wallet.address);
   const mapped = mapLedger(ledger, state.wallet.address);
   els.balance.textContent = balance.toLocaleString();
+  els.balanceBTC.textContent = `≈ ${(balance / 100_000_000).toFixed(8)} BTC`;
   els.txCount.textContent = mapped.length;
   els.txList.innerHTML = '';
+  if (mapped.length === 0) {
+    els.txList.innerHTML = '<div class="muted" style="text-align: center; padding: 20px;">No transactions yet. Add test funds to get started!</div>';
+  }
   mapped.forEach(tx => {
     const clone = els.txTemplate.content.cloneNode(true);
     clone.querySelector('.type').textContent = tx.type;
     clone.querySelector('.id').textContent = tx.id;
-    clone.querySelector('.amount').textContent = `${tx.type === 'Sent' ? '-' : '+'}${tx.amount} sats`;
+    const amountEl = clone.querySelector('.amount');
+    amountEl.textContent = `${tx.type === 'Sent' ? '-' : '+'}${tx.amount.toLocaleString()} sats`;
+    amountEl.classList.add(tx.type === 'Sent' ? 'negative' : 'positive');
     clone.querySelector('.to').textContent = tx.counterparty;
     const date = new Date(tx.timestamp * 1000);
     clone.querySelector('.time').textContent = isNaN(date.getTime()) ? '' : date.toLocaleString();
@@ -131,18 +146,24 @@ function renderLedger(ledger) {
 
 async function refresh() {
   setStatus('Refreshing...');
+  els.refresh.disabled = true;
   try {
     let ledger = [];
     if (state.mode === 'local') {
       ledger = state.localLedger;
     } else {
-      if (!state.remoteUrl) throw new Error('Set remote URL');
+      if (!state.remoteUrl) throw new Error('Please enter and connect to a remote server URL first');
       ledger = await fetchRemoteLedger();
     }
     renderLedger(ledger);
     setStatus('');
   } catch (e) {
-    setStatus(e.message || 'Refresh failed', true);
+    const msg = e.message.includes('fetch') || e.message.includes('Remote') 
+      ? 'Cannot connect to server. Check your URL and try again.' 
+      : e.message;
+    setStatus(msg || 'Refresh failed', true);
+  } finally {
+    els.refresh.disabled = false;
   }
 }
 
@@ -159,24 +180,33 @@ function buildTx({ from, to, amount, fee = null, confirmed = false }) {
 }
 
 async function handleSend(to, amount) {
-  if (!to || !amount || amount <= 0) throw new Error('Amount and recipient required');
-  const tx = buildTx({ from: state.wallet.address, to, amount: Number(amount), confirmed: false });
+  if (!to || !amount || amount <= 0) throw new Error('Please enter a valid recipient address and amount');
+  const numAmount = Number(amount);
+  const balance = computeBalance(
+    state.mode === 'local' ? state.localLedger : [], 
+    state.wallet.address
+  );
+  const fee = Math.max(100, Math.floor(numAmount / 1000));
+  if (numAmount + fee > balance) {
+    throw new Error(`Insufficient balance. You need ${(numAmount + fee).toLocaleString()} sats (including ${fee} sats fee), but only have ${balance.toLocaleString()} sats`);
+  }
+  const tx = buildTx({ from: state.wallet.address, to, amount: numAmount, confirmed: false });
   if (state.mode === 'local') {
     addLocalTx(tx);
   } else {
-    if (!state.remoteUrl) throw new Error('Set remote URL');
+    if (!state.remoteUrl) throw new Error('Please enter and connect to a remote server URL first');
     await postRemoteTx(tx);
   }
   await refresh();
 }
 
 async function handleCredit(amount) {
-  if (!amount || amount <= 0) throw new Error('Amount required');
+  if (!amount || amount <= 0) throw new Error('Please enter a valid amount greater than 0');
   const tx = buildTx({ from: 'faucet', to: state.wallet.address, amount: Number(amount), fee: 0, confirmed: true });
   if (state.mode === 'local') {
     addLocalTx(tx);
   } else {
-    if (!state.remoteUrl) throw new Error('Set remote URL');
+    if (!state.remoteUrl) throw new Error('Please enter and connect to a remote server URL first');
     await postRemoteTx(tx);
   }
   await refresh();
@@ -186,9 +216,10 @@ function setupEvents() {
   els.copy.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(state.wallet.address);
-      setStatus('Address copied');
+      showCopiedFeedback();
+      setStatus('');
     } catch {
-      setStatus('Copy failed', true);
+      setStatus('Failed to copy. Please copy the address manually.', true);
     }
   });
 
@@ -210,26 +241,36 @@ function setupEvents() {
 
   els.addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
     const amount = Number(new FormData(e.target).get('amount'));
     try {
       await handleCredit(amount);
-      setStatus('Credited');
+      setStatus('✓ Test funds added successfully!');
+      setTimeout(() => setStatus(''), 3000);
     } catch (err) {
       setStatus(err.message, true);
+    } finally {
+      btn.disabled = false;
     }
   });
 
   els.sendForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
     const data = new FormData(e.target);
     const to = data.get('to').toString().trim();
     const amount = Number(data.get('amount'));
     try {
       await handleSend(to, amount);
-      setStatus('Sent');
+      setStatus('✓ Transaction sent successfully!');
       e.target.reset();
+      setTimeout(() => setStatus(''), 3000);
     } catch (err) {
       setStatus(err.message, true);
+    } finally {
+      btn.disabled = false;
     }
   });
 
