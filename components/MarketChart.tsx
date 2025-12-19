@@ -1,65 +1,103 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createChart, ColorType, LineStyle, AreaSeriesPartialOptions } from 'lightweight-charts';
 
 interface MarketChartProps {
   data: { time: number; price: number }[];
 }
 
 const MarketChart: React.FC<MarketChartProps> = ({ data }) => {
-  if (data.length < 2) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
+  const areaRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const chart = createChart(containerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#e9ecf5',
+        fontSize: 11,
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.08)',
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.08)',
+        secondsVisible: true,
+        timeVisible: true,
+      },
+      grid: {
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      crosshair: {
+        horzLine: { color: '#7af5d3', width: 1, style: LineStyle.Solid },
+        vertLine: { color: '#7af5d3', width: 1, style: LineStyle.Solid },
+      },
+      localization: { priceFormatter: (p) => `$${p.toLocaleString(undefined, { maximumFractionDigits: 2 })}` },
+    });
+
+    const areaOptions: AreaSeriesPartialOptions = {
+      lineColor: '#7af5d3',
+      topColor: 'rgba(122,245,211,0.35)',
+      bottomColor: 'rgba(122,245,211,0.04)',
+      lineWidth: 2,
+      priceLineVisible: false,
+    };
+
+    const areaSeries = chart.addAreaSeries(areaOptions);
+
+    const resize = () => {
+      chart.applyOptions({ width: containerRef.current?.clientWidth || 0, height: containerRef.current?.clientHeight || 0 });
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    chartRef.current = chart;
+    areaRef.current = areaSeries;
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      chart.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || !chartRef.current || !areaRef.current) return;
+    const chart = chartRef.current;
+    const areaSeries = areaRef.current;
+
+    if (!data || data.length === 0) {
+      areaSeries.setData([]);
+      return;
+    }
+
+    const normalized = data.map(d => ({ time: Math.floor(d.time / 1000), value: d.price }));
+    areaSeries.setData(normalized);
+    areaSeries.update(normalized[normalized.length - 1]);
+    chart.timeScale()?.fitContent();
+  }, [data]);
+
+  if (!data || data.length < 2) {
     return (
-      <div className="h-64 flex items-center justify-center border border-white/5 bg-black/20 rounded-xl">
-        <p className="text-xs font-mono text-white/20 animate-pulse">Initializing data streams...</p>
+      <div className="h-64 flex items-center justify-center border border-white/5 bg-white/5 rounded-2xl glass">
+        <p className="text-xs font-mono text-white/30 animate-pulse">Booting market feed…</p>
       </div>
     );
   }
 
-  const prices = data.map(d => d.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
-  const padding = range * 0.1;
-
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const y = 100 - ((d.price - min + padding) / (range + padding * 2)) * 100;
-    return `${x},${y}`;
-  }).join(' ');
-
+  const latest = data[data.length - 1];
   return (
-    <div className="relative h-64 w-full bg-black/20 rounded-xl overflow-hidden group">
-      {/* Grid lines */}
-      <div className="absolute inset-0 flex flex-col justify-between p-4 opacity-5 pointer-events-none">
-        {[...Array(5)].map((_, i) => <div key={i} className="border-t border-white w-full"></div>)}
-      </div>
+    <div className="relative h-72 w-full rounded-2xl glass overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{ filter: 'drop-shadow(0 0 12px rgba(122,245,211,0.35))' }} />
+      <div ref={containerRef} className="w-full h-full" />
 
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full p-4 overflow-visible">
-        {/* Fill area */}
-        <polyline
-          fill="url(#gradient)"
-          stroke="none"
-          points={`0,100 ${points} 100,100`}
-        />
-        {/* Main Line */}
-        <polyline
-          fill="none"
-          stroke="#22d3ee"
-          strokeWidth="1.5"
-          points={points}
-          className="transition-all duration-1000"
-        />
-        <defs>
-          <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#22d3ee', stopOpacity: 0.2 }} />
-            <stop offset="100%" style={{ stopColor: '#22d3ee', stopOpacity: 0 }} />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      {/* Tooltip */}
-      <div className="absolute top-4 right-4 flex flex-col items-end">
-        <p className="text-[10px] font-mono text-white/30">CURRENT SESSION MAX</p>
-        <p className="text-sm font-bold font-mono text-electro-accent">${max.toLocaleString()}</p>
+      <div className="absolute top-4 right-4 text-right">
+        <p className="text-[10px] font-mono text-white/40">LIVE PRICE</p>
+        <p className="text-xl font-bold font-mono text-white">${latest.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+        <p className="text-[10px] font-mono text-electro-accent">Real-time feed · glass view</p>
       </div>
     </div>
   );
