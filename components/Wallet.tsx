@@ -75,18 +75,41 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
 
     // Refresh users from storage each send to catch new users from other tabs/browsers
     const recipientTrimmed = recipient.trim();
+
+    // Validate address against selected currency format
+    if (!validateAddress(currency, recipientTrimmed)) {
+      setError(`Invalid ${currency} address format.`);
+      setRecipientInvalid(true);
+      return;
+    }
+
     const users = db.getUsers();
-    const receiver = users.find(u => u.username.toLowerCase() === recipientTrimmed.toLowerCase());
+    const receiver = users.find(u => (u.walletAddresses?.[currency] || '').toLowerCase() === recipientTrimmed.toLowerCase());
     if (!receiver) {
-      const suggestions = users
-        .filter(u => u.username.toLowerCase().startsWith(recipientTrimmed.toLowerCase()))
-        .slice(0, 3)
-        .map(u => u.username);
-      setError(suggestions.length ? `User not found. Did you mean: ${suggestions.join(', ')}?` : 'User not found on the network.');
+      setError('Destination address not found on the network.');
       setRecipientInvalid(true);
       return;
     }
     if (receiver.id === user.id) { setError('Cannot transmit to self.'); return; }
+    
+      // Refresh users from storage each send to catch new users from other tabs/browsers
+      const recipientTrimmed = recipient.trim();
+
+      // Validate address against selected currency format
+      if (!validateAddress(currency, recipientTrimmed)) {
+        setError(`Invalid ${currency} address format.`);
+        setRecipientInvalid(true);
+        return;
+      }
+
+      const users = db.getUsers();
+      const receiver = users.find(u => u.walletAddresses?.[currency]?.toLowerCase() === recipientTrimmed.toLowerCase());
+      if (!receiver) {
+        setError('Destination address not found on the network.');
+        setRecipientInvalid(true);
+        return;
+      }
+      if (receiver.id === user.id) { setError('Cannot transmit to self.'); return; }
 
     // Emit to server mempool
     electroSocket.submitTx({ from: user.username, to: recipientTrimmed, amount: sendAmount, currency });
@@ -170,14 +193,15 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
           {success && <div className="p-3 bg-success/10 border border-success/20 text-success text-[10px] rounded-lg font-mono uppercase">{success}</div>}
           
           <div>
-            <label className="block text-[10px] font-mono text-white/30 mb-2 uppercase tracking-widest">Recipient Operator (@)</label>
+            <label className="block text-[10px] font-mono text-white/30 mb-2 uppercase tracking-widest">Recipient Wallet Address</label>
             <input 
               type="text" 
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
               className={`w-full bg-black/40 border rounded-xl p-4 text-white font-mono focus:outline-none transition-all ${recipientInvalid ? 'border-danger focus:border-danger' : 'border-white/10 focus:border-electro-secondary'}`}
-              placeholder="e.g. AdminGod"
+              placeholder="Paste BTC / ETH / SOL address"
             />
+            <p className="text-[10px] text-white/30 font-mono mt-2">Validated against the selected asset format.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
