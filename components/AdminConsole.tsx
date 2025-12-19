@@ -19,6 +19,12 @@ const AdminConsole: React.FC<AdminConsoleProps> = ({ admin, onLogout }) => {
   const [globalAlert, setGlobalAlert] = useState('');
   const notify = useNotify();
 
+  const refreshData = () => {
+    setUsers(db.getUsers());
+    setTransactions(db.getTransactions());
+    setMarket(db.getMarket());
+  };
+
   useEffect(() => {
     electroSocket.connect('admin');
     electroSocket.onMarketFrozen((f) => setMarketFrozen(f));
@@ -27,11 +33,24 @@ const AdminConsole: React.FC<AdminConsoleProps> = ({ admin, onLogout }) => {
     });
     
     const interval = setInterval(() => {
-      setUsers(db.getUsers());
-      setTransactions(db.getTransactions());
+      refreshData();
     }, 2000);
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'electrowallet_users' || e.key === 'electrowallet_transactions') {
+        refreshData();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    const handleFocus = () => refreshData();
+    window.addEventListener('focus', handleFocus);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const totalVolume = transactions.reduce((sum, tx) => {
