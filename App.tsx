@@ -85,10 +85,16 @@ const App: React.FC = () => {
 
   if (mode === 'admin') {
     if (!adminUser) {
-      return <AdminAuth onLogin={setAdminUser} onBack={() => setMode('user')} />;
+      return (
+        <NotificationsProvider>
+          <AdminAuth onLogin={setAdminUser} onBack={() => setMode('user')} />
+        </NotificationsProvider>
+      );
     }
     return (
-      <AdminConsole admin={adminUser} onLogout={() => setAdminUser(null)} />
+      <NotificationsProvider>
+        <AdminConsole admin={adminUser} onLogout={() => setAdminUser(null)} />
+      </NotificationsProvider>
     );
   }
 
