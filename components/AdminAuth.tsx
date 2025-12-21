@@ -16,9 +16,12 @@ const AdminAuth: React.FC<AdminAuthProps> = ({ onLogin, onBack }) => {
     e.preventDefault();
     setError('');
     if (!username || !password) { setError('Required fields missing.'); return; }
-    const user = db.getUsers().find(u => u.username === username && u.passwordHash === password);
-    if (!user || !user.isAdmin) { setError('Invalid admin credentials.'); return; }
-    onLogin(user);
+    const usersList = db.getUsers();
+    const userByName = usersList.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    if (!userByName) { setError('Admin user not found.'); return; }
+    if (userByName.passwordHash !== password) { setError('Incorrect password.'); return; }
+    if (!userByName.isAdmin) { setError('User does not have admin privileges.'); return; }
+    onLogin(userByName);
   };
 
   return (

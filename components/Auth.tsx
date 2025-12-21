@@ -65,16 +65,20 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       setGeneratedMnemonic(mnemonic);
       setStep(2);
     } else {
-      const user = db.getUsers().find(u => u.username.toLowerCase() === uname.toLowerCase() && u.passwordHash === pass);
-      if (user) {
-        if (user.isBanned) {
+      const usersList = db.getUsers();
+      const userByName = usersList.find(u => u.username.toLowerCase() === uname.toLowerCase());
+      if (userByName) {
+        if (userByName.passwordHash !== pass) {
+          setError('Incorrect password.');
+          setInlineHint('Forgot password? Register to create a new wallet.');
+        } else if (userByName.isBanned) {
           setError('Account has been restricted by administrators.');
         } else {
-          onLogin(user);
+          onLogin(userByName);
         }
       } else {
-        setError('Invalid credentials.');
-        setInlineHint('Check casing; min password length 8.');
+        setError('User not found.');
+        setInlineHint('Try registering or check your alias spelling.');
       }
     }
   };

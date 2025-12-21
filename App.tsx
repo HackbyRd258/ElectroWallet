@@ -22,6 +22,32 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState(db.getTransactions());
   const [users, setUsers] = useState(db.getUsers());
 
+  // Load persisted session (if any) and keep it in sync with storage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('electrowallet_currentUser');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const existing = db.getUsers().find(u => u.id === parsed.id);
+        if (existing) setCurrentUser(existing);
+      }
+    } catch (e) {
+      console.warn('Failed to load persisted session:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem('electrowallet_currentUser', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('electrowallet_currentUser');
+      }
+    } catch (e) {
+      console.warn('Failed to persist session:', e);
+    }
+  }, [currentUser]);
+
   // Live Market via Socket.io (Server Source of Truth)
   useEffect(() => {
     const socket = electroSocket.connect(currentUser?.username);
