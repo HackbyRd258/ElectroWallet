@@ -24,6 +24,23 @@ export const MOCK_ADMIN: User = {
   balance: { BTC: 100, ETH: 500, SOL: 10000 },
 };
 
+// A simple demo/test user for quick sign-in during demos
+export const MOCK_TEST_USER: User = {
+  id: 'user-test-001',
+  username: 'testuser',
+  passwordHash: 'test123',
+  subscriptionTier: SubscriptionTier.STANDARD,
+  isBanned: false,
+  isAdmin: false,
+  mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+  walletAddresses: {
+    BTC: 'bc1qtestuser000000000000000000000000000000',
+    ETH: '0xTestUser0000000000000000000000000000000000',
+    SOL: 'TestTestTestTestTestTestTestTestTestTes'
+  },
+  balance: { BTC: 0.01, ETH: 1.0, SOL: 10 },
+};
+
 export const INITIAL_MARKET = {
   // Roughly mimic late-2025 spot prices
   BTC: { symbol: 'BTC', name: 'Bitcoin', price: 98240.5, change24h: 1.2, history: [] },

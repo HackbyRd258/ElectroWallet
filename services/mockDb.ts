@@ -81,7 +81,8 @@ class MockDB {
       this.users = savedUsers;
     } else {
       const bots = createBotUsers();
-      this.users = [MOCK_ADMIN, ...bots];
+      // Include a demo test user so 'testuser' / 'test123' works out of the box
+      this.users = [MOCK_ADMIN, MOCK_TEST_USER, ...bots];
       this.saveToStorage(this.USERS_KEY, this.users);
     }
     
