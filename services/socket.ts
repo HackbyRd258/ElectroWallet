@@ -206,14 +206,15 @@ class ElectroSocket {
     // Import db dynamically to avoid circular dependency
     import('../services/mockDb').then(({ db }) => {
       const sender = db.getUsers().find(u => u.username.toLowerCase() === payload.from.toLowerCase());
-      const receiver = db.getUsers().find(u => u.username.toLowerCase() === payload.to.toLowerCase());
+      const curr = payload.currency as 'BTC' | 'ETH' | 'SOL';
+      // Resolve receiver by wallet address for the selected currency
+      const receiver = db.getUsers().find(u => (u.walletAddresses?.[curr] || '').toLowerCase() === payload.to.toLowerCase());
 
       if (!sender || !receiver) {
         console.error('Transaction failed: User not found');
         return;
       }
 
-      const curr = payload.currency as 'BTC' | 'ETH' | 'SOL';
       if (sender.balance[curr] < payload.amount) {
         console.error('Transaction failed: Insufficient balance');
         return;
