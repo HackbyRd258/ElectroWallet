@@ -37,7 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({ market, transactions, user }) => 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
             <div className="group/stat cursor-pointer p-4 rounded-xl hover:bg-white/5 transition-all">
               <p className="text-white/50 text-[9px] lg:text-[10px] font-mono uppercase tracking-widest mb-2 group-hover/stat:text-cyan-400 transition-colors">Portfolio Value</p>
-              <p className="text-xl lg:text-2xl font-bold font-mono tracking-tighter text-white group-hover/stat:text-cyan-300 group-hover/stat:scale-105 transition-all drop-shadow-[0_0_15px_rgba(94,231,223,0.3)]">${totalValue === 0 ? '0' : totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-xl lg:text-2xl font-bold font-mono tracking-tighter text-white group-hover/stat:text-cyan-300 group-hover/stat:scale-105 transition-all drop-shadow-[0_0_15px_rgba(94,231,223,0.3)]">${totalValue === 0 ? '0' : totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             </div>
             <div className="group/stat cursor-pointer p-4 rounded-xl hover:bg-white/5 transition-all">
               <p className="text-white/50 text-[9px] lg:text-[10px] font-mono uppercase tracking-widest mb-2 group-hover/stat:text-emerald-400 transition-colors">Transactions</p>
@@ -56,21 +56,27 @@ const Dashboard: React.FC<DashboardProps> = ({ market, transactions, user }) => 
               <div className="flex justify-between items-start mb-4 lg:mb-5">
                 <div className="flex-1">
                   <h3 className="text-white/50 text-[9px] lg:text-xs font-mono uppercase tracking-wider group-hover:text-cyan-400 transition-colors">{coin.name}</h3>
-                  <p className="text-lg lg:text-2xl font-bold font-mono tracking-tighter text-white group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_10px_rgba(94,231,223,0.2)]">${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-lg lg:text-2xl font-bold font-mono tracking-tighter text-white group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_10px_rgba(94,231,223,0.2)]">${coin.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                 </div>
                 <span className={`text-[9px] lg:text-xs font-mono px-3 lg:px-4 py-1.5 rounded-full transition-all transform group-hover:scale-110 whitespace-nowrap font-semibold ${coin.change24h >= 0 ? 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25 group-hover:shadow-lg group-hover:shadow-emerald-500/20' : 'bg-rose-500/15 text-rose-400 group-hover:bg-rose-500/25 group-hover:shadow-lg group-hover:shadow-rose-500/20'}`}>
-                  {coin.change24h >= 0 ? '↑ +' : '↓ '}{coin.change24h.toFixed(2)}%
+                  {coin.change24h >= 0 ? '↑ +' : '↓ '}{Math.abs(coin.change24h).toFixed(1)}%
                 </span>
               </div>
               <div className="h-10 lg:h-12 w-full rounded-lg bg-white/3 overflow-hidden">
                 <div className="flex items-end gap-0.5 h-full opacity-40 group-hover:opacity-70 transition-opacity duration-300">
-                  {coin.history.slice(-15).map((h, i) => (
-                    <div 
-                      key={i} 
-                      className={`flex-1 rounded-sm transition-all ${coin.change24h >= 0 ? 'bg-gradient-to-t from-emerald-500 to-emerald-400' : 'bg-gradient-to-t from-rose-500 to-rose-400'}`}
-                      style={{ height: `${20 + (Math.random() * 80)}%` }}
-                    />
-                  ))}
+                  {Array.from({ length: 15 }, (_, i) => {
+                    // Use a deterministic pattern instead of random to prevent glitching
+                    const baseHeight = 30;
+                    const variation = Math.sin(i * 0.5) * 20;
+                    const height = Math.max(10, Math.min(90, baseHeight + variation));
+                    return (
+                      <div 
+                        key={i} 
+                        className={`flex-1 rounded-sm transition-all ${coin.change24h >= 0 ? 'bg-gradient-to-t from-emerald-500 to-emerald-400' : 'bg-gradient-to-t from-rose-500 to-rose-400'}`}
+                        style={{ height: `${height}%` }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             </div>

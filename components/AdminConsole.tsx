@@ -207,7 +207,7 @@ const AdminConsole: React.FC<AdminConsoleProps> = ({ admin, onLogout }) => {
                       <span className={`text-xs font-mono px-3 py-1 rounded-full ${
                         coin.change24h >= 0 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                       }`}>
-                        {coin.change24h >= 0 ? '+' : ''}{coin.change24h.toFixed(2)}%
+                        {coin.change24h >= 0 ? '+' : ''}{Math.abs(coin.change24h).toFixed(1)}%
                       </span>
                     </div>
                     <div className="text-xs text-white/30 font-mono">
@@ -237,7 +237,7 @@ const AdminConsole: React.FC<AdminConsoleProps> = ({ admin, onLogout }) => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold font-mono">{tx.amount === 0 ? '0' : tx.amount.toFixed(tx.amount < 0.01 ? 6 : 4)} {tx.currency}</p>
-                      <p className="text-xs text-white/40 font-mono">${(tx.amount * (market[tx.currency]?.price || 0)).toFixed(2)}</p>
+                      <p className="text-xs text-white/40 font-mono">${Math.round(tx.amount * (market[tx.currency]?.price || 0)).toLocaleString()}</p>
                     </div>
                   </div>
                 ))}

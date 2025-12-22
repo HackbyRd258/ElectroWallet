@@ -174,7 +174,7 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
           <p className="text-white/40 text-xs font-mono uppercase tracking-[0.2em] mb-1">Estimated Net Worth</p>
           <div className="flex items-baseline gap-2">
             <h2 className="text-4xl font-bold font-mono tracking-tighter text-white">
-              ${totalValueUSD === 0 ? '0' : totalValueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${totalValueUSD === 0 ? '0' : totalValueUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </h2>
             <span className="text-electro-accent font-mono text-xs">USD</span>
           </div>
@@ -470,7 +470,7 @@ const BalanceCard: React.FC<{ symbol: string; amount: number; price: number }> =
   // For zero balances, show just "0" to avoid excessive zeros
   const displayAmount = amount === 0 ? '0' : amount.toFixed(amount < 0.01 ? 6 : 4);
   const usdValue = amount * price;
-  const displayUSD = usdValue === 0 ? '$0' : `$${usdValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const displayUSD = usdValue === 0 ? '$0' : `$${Math.round(usdValue).toLocaleString()}`;
 
   return (
     <div className="bg-black/40 p-3 rounded-xl border border-white/5 flex-1 min-w-[120px]">

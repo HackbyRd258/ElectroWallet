@@ -173,7 +173,7 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol = 'BTC', chartTy
               ${latest.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </p>
             <p className={`text-[10px] font-mono font-semibold ${change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {change >= 0 ? '↑ +' : '↓ '}{change.toFixed(2)}% (1h) · Real-time
+              {change >= 0 ? '↑ +' : '↓ '}{Math.abs(change).toFixed(1)}% (1h) · Real-time
             </p>
           </div>
 
@@ -182,7 +182,7 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, symbol = 'BTC', chartTy
             <div className="grid grid-cols-3 gap-2 text-[9px]">
               <div className="glass rounded-xl px-3 py-2 hover:bg-white/8 transition-all cursor-default">
                 <p className="text-white/50 uppercase tracking-wider text-[8px]">Vol</p>
-                <p className="font-mono text-white font-bold text-sm">{(volatility * 100).toFixed(2)}%</p>
+                <p className="font-mono text-white font-bold text-sm">{Math.round(volatility * 100)}%</p>
               </div>
               <div className="glass rounded-xl px-3 py-2 hover:bg-white/8 transition-all cursor-default">
                 <p className="text-white/50 uppercase tracking-wider text-[8px]">RSI</p>
