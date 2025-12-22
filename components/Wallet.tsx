@@ -3,6 +3,7 @@ import { User, MarketData, Transaction } from '../types';
 import { db } from '../services/mockDb';
 import { TransactionConfirmDialog, AddressQR } from './WalletSecurity';
 import { useNotify } from './Notifications';
+import { formatCryptoAmount, formatUSD } from '../utils/formatters';
 
 interface WalletProps {
   user: User;
@@ -16,21 +17,6 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
   const [recipient, setRecipient] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const notify = useNotify();
-
-  const formatBalance = (amount: number, currency: string): string => {
-    if (amount === 0) return '0';
-    if (amount < 0.000001) return amount.toFixed(8);
-    if (amount < 0.01) return amount.toFixed(6);
-    if (amount < 1) return amount.toFixed(4);
-    return amount.toFixed(2);
-  };
-
-  const formatUSD = (amount: number): string => {
-    if (amount === 0) return '$0';
-    if (amount < 0.01) return `$${amount.toFixed(4)}`;
-    if (amount < 1) return `$${amount.toFixed(2)}`;
-    return `$${Math.round(amount).toLocaleString()}`;
-  };
 
   const handleSend = () => {
     const amount = parseFloat(sendAmount);
@@ -128,7 +114,7 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
                 <div>
                   <p className="text-white/50 text-xs font-mono uppercase">{coin.name}</p>
                   <p className="text-2xl font-bold font-mono text-white mt-1">
-                    {formatBalance(balance, symbol)}
+                    {formatCryptoAmount(balance)}
                   </p>
                   <p className="text-sm text-white/40 font-mono mt-1">
                     {formatUSD(usdValue)}
@@ -193,7 +179,7 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
               className="w-full bg-black/40 border border-white/20 rounded-xl p-3 text-white font-mono focus:outline-none focus:border-cyan-400"
             />
             <p className="text-xs text-white/30 mt-1 font-mono">
-              Available: {formatBalance(user.balance[sendCurrency], sendCurrency)} {sendCurrency}
+              Available: {formatCryptoAmount(user.balance[sendCurrency])} {sendCurrency}
             </p>
           </div>
 

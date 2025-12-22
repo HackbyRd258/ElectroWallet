@@ -27,8 +27,5 @@ export function formatUSD(amount: number): string {
  * Always shows 2 decimal places with thousands separators
  */
 export function formatPrice(price: number): string {
-  if (price >= 1000) {
-    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
   return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
