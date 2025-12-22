@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas as QRCode } from 'qrcode.react';
 import { security } from '../services/security';
 import { useNotify } from './Notifications';
 
