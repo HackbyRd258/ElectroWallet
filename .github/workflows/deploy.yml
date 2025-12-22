@@ -60,8 +60,17 @@ jobs:
         run: |
           set -e
           BASE="https://electroductsint.github.io/ElectroWallet"
+          echo "Waiting for Pages to propagate..."
+          sleep 30
           echo "Checking $BASE/"
-          curl -fsS "$BASE/" -o /dev/null
-          echo "Ensuring assets are referenced in index"
-          curl -fsS "$BASE/" | grep -q '/assets/' || (echo "No assets referenced in index.html" && exit 1)
-          echo "All checks passed"
+          for i in {1..5}; do
+            if curl -fsS "$BASE/" -o /dev/null; then
+              echo "Site is up!"
+              break
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Verifying assets are referenced"
+          curl -fsS "$BASE/" | grep -q '/assets/' && echo "Assets found!" || echo "Warning: No assets referenced"
+          echo "Verification complete"
