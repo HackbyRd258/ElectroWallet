@@ -136,19 +136,37 @@ io.on('connection', async (socket) => {
     const { from, to, amount, currency } = payload || {};
     if (!from || !to || !amount || !currency) return;
     const hash = generateHash();
+    const requiredConfirmations = 3; // UX demo: 3 confirmations
     const tx = {
       id: hash,
       hash,
       senderUsername: from,
-      receiverUsername: to,
+      receiverUsername: to,      // Treat 'to' as wallet address for broadcast
+      receiverAddress: to,
       amount: Number(amount),
       currency,
       timestamp: Date.now(),
-      status: 'Pending'
+      status: 'Pending',
+      confirmations: 0,
+      requiredConfirmations
     };
     mempool.set(hash, tx);
     io.emit('MEMPOOL_UPDATE', Array.from(mempool.values()));
-    scheduleConfirmation(tx);
+
+    // Simulate confirmations: increment every 1s until 3, then confirm
+    const intervalMs = 1000;
+    const timer = setInterval(() => {
+      const current = mempool.get(hash);
+      if (!current) { clearInterval(timer); return; }
+      current.confirmations = (current.confirmations || 0) + 1;
+      io.emit('MEMPOOL_UPDATE', Array.from(mempool.values()));
+      if ((current.confirmations || 0) >= requiredConfirmations) {
+        clearInterval(timer);
+        current.status = 'Confirmed';
+        io.emit('TX_CONFIRMED', current);
+        mempool.delete(hash);
+      }
+    }, intervalMs);
   });
 
   // Admin controls

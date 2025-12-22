@@ -54,8 +54,17 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
       setSuccess(`Confirmed: ${tx.amount} ${tx.currency} from @${tx.senderUsername} to @${tx.receiverUsername}`);
       notify('success', `Transfer confirmed: ${tx.amount} ${tx.currency} → @${tx.receiverUsername}`);
       // Update local ledger and balances
-      const sender = db.getUsers().find(u => u.username === tx.senderUsername);
-      const receiver = db.getUsers().find(u => u.username === tx.receiverUsername);
+      let sender = db.getUsers().find(u => u.username === tx.senderUsername);
+      let receiver = db.getUsers().find(u => u.username === tx.receiverUsername);
+      // If server broadcasted receiverUsername as address, resolve by wallet address
+      if (!receiver) {
+        const addr = (tx as any).receiverAddress || tx.receiverUsername;
+        const addrLc = (addr || '').toLowerCase();
+        receiver = db.getUsers().find(u => {
+          const wa = u.walletAddresses;
+          return wa && [wa.BTC, wa.ETH, wa.SOL].some(a => (a || '').toLowerCase() === addrLc);
+        }) || undefined as any;
+      }
       if (receiver) {
         db.updateUser(receiver.id, { balance: { ...receiver.balance, [tx.currency]: receiver.balance[tx.currency as any] + tx.amount } });
       }
@@ -277,6 +286,47 @@ const Wallet: React.FC<WalletProps> = ({ user, market, onTransaction }) => {
             </button>
           </form>
         </div>
+
+        {/* Pending Transactions / Mempool */}
+        {mempool && mempool.length > 0 && (
+          <div className="glass p-8 rounded-2xl">
+            <h3 className="text-sm font-bold font-mono text-white/50 mb-4 uppercase tracking-[0.2em]">Pending Transactions</h3>
+            <div className="space-y-3">
+              {mempool.map((tx) => {
+                const conf = tx.confirmations || 0;
+                const req = tx.requiredConfirmations || 3;
+                const pct = Math.min(100, Math.round((conf / req) * 100));
+                const toLabel = (tx as any).receiverAddress || tx.receiverUsername;
+                return (
+                  <div key={tx.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-mono text-white/40 uppercase">TXID</p>
+                        <p className="font-mono text-xs text-white break-all">{tx.hash}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-mono text-white/40 uppercase">Amount</p>
+                        <p className="font-mono text-sm text-white">{tx.amount.toFixed(8)} {tx.currency}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[10px] font-mono text-white/40 uppercase">To</p>
+                      <p className="font-mono text-xs text-electro-accent break-all">{toLabel}</p>
+                    </div>
+                    <div className="mt-4">
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-electro-primary" style={{ width: `${pct}%` }}></div>
+                      </div>
+                      <p className="mt-1 text-[10px] font-mono text-white/50">
+                        Confirmations: <span className="text-white">{conf}</span> / {req}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Mempool Preview */}
         <div className="glass p-8 rounded-2xl">

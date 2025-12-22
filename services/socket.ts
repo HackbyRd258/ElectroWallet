@@ -14,6 +14,7 @@ export type MempoolTx = {
   hash: string;
   senderUsername: string;
   receiverUsername: string;
+  receiverAddress?: string;
   amount: number;
   currency: string;
   timestamp: number;
@@ -220,9 +221,9 @@ class ElectroSocket {
         return;
       }
 
-        // Different confirmation requirements per currency (like real blockchains)
-        const requiredConfs = payload.currency === 'BTC' ? 6 : payload.currency === 'ETH' ? 12 : 25;
-        const confInterval = payload.currency === 'BTC' ? 600 : payload.currency === 'ETH' ? 200 : 80; // ms per confirmation
+        // User-requested: show 3 confirmations for UX demo
+        const requiredConfs = 3;
+        const confInterval = 800; // ms per confirmation
 
       // Create transaction
       const tx: MempoolTx = {
@@ -230,6 +231,7 @@ class ElectroSocket {
         hash: '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
         senderUsername: sender.username,
         receiverUsername: receiver.username,
+        receiverAddress: payload.to,
         amount: payload.amount,
         currency: payload.currency,
         timestamp: Date.now(),
